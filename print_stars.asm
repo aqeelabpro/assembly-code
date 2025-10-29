@@ -1,59 +1,94 @@
 [org 0x0100]
-    jmp start
+jmp start
 
-print_stars:
+;----------------------------------------
+; print_triangle
+; Prints a triangle of stars starting at (row, col)
+; Stack parameters:
+;   [bp+4]  = attribute byte
+;   [bp+6]  = column (0-based)
+;   [bp+8]  = row (0-based)
+;   [bp+10] = number of rows (height)
+;----------------------------------------
+print_triangle:
+    push bp
+    mov bp, sp
     push ax
     push bx
     push cx
     push dx
-    
-    mov dx, [number]
-    mov cx, 1               ; Start from row 1
+    push si
+    push di
+    push es
 
-outer:
-    cmp cx, dx
-    jg done
-    
-    mov bx, 0               ; Column counter
-    mov ah, 0x02            ; DOS function to print character
+    mov ax, 0B800h
+    mov es, ax                 ; video memory segment
 
-inner:
-    cmp bx, cx              ; Compare column with row number
-    jge newline             ; If we've printed cx stars, print newline
-    
-    push dx                 ; Save row counter
-    mov dl, '*'
-    int 0x21
-    
-    mov dl, ' '
-    int 0x21
-    
-    pop dx                  ; Restore row counter
-    inc bx
-    jmp inner
+    mov cx, [bp+10]            ; total rows to print
+    xor si, si                 ; current row counter (0-based)
+    mov bl, [bp+4]             ; attribute byte
+    mov bh, 0                  ; high byte for AX
 
-newline:
-    push dx                 ; Save row counter
-    mov dl, 0x0D            ; Carriage return
-    int 0x21
-    mov dl, 0x0A            ; Line feed
-    int 0x21
-    pop dx                  ; Restore row counter
-    
-    inc cx
-    jmp outer
+row_loop:
+    mov ax, [bp+8]             ; starting row
+    add ax, si                 ; current row = start + si
+    mov dx, 80
+    mul dx                      ; ax = row * 80
+    add ax, [bp+6]             ; add starting column
+    shl ax, 1                   ; multiply by 2 for bytes
+    mov di, ax                  ; offset in video memory
+
+    ; print stars for this row (si + 1 stars)
+    mov cx, si
+    inc cx                      ; number of stars = current row index + 1
+
+print_star:
+    cmp cx,0
+    je next_row
+    mov al,'*'
+    mov ah, bl            ; attribute
+    mov [es:di], ax       ; print star
+    add di,2              ; move to next cell
+    mov al,' '            ; space
+    mov ah, bl            ; same attribute
+    mov [es:di], ax
+    add di,2              ; move to next cell after space
+    dec cx
+    jmp print_star
+
+next_row:
+    inc si                      ; next row
+    cmp si, [bp+10]             ; finished all rows?
+    jl row_loop
 
 done:
+    pop es
+    pop di
+    pop si
     pop dx
     pop cx
     pop bx
     pop ax
-    ret
+    pop bp
+    ret 8
 
+;----------------------------------------
+; main program
+;----------------------------------------
 start:
-    call print_stars
-    
-    mov ax, 0x4c00
+    push word [height]  ; number of rows in triangle
+    push word [rows]    ; starting row
+    push word [cols]    ; starting column
+    push word [attr]    ; attribute
+    call print_triangle
+
+    mov ax, 0x4C00
     int 0x21
 
-number: dw 5
+;----------------------------------------
+; data
+;----------------------------------------
+height: dw 5       ; triangle height
+rows:   dw 10      ; starting row
+cols:   dw 50      ; starting column
+attr:   dw 0x07    ; white-on-black

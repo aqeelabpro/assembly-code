@@ -23,7 +23,7 @@ priner:
     cmp dl,9
     jbe its_digit
     mov dh,0x07       ; attribute byte
-    add dl,7          ; make correct ascii for A-F
+    add dl,0x37         ; make correct ascii for A-F
     push dx
     inc cx
     cmp ax,0
