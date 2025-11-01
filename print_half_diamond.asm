@@ -60,8 +60,7 @@ next_row:
     inc si                      ; next row
     cmp si, [bp+10]             ; finished all rows?
     jl outer_loop
-    
-
+        
 done:
     pop es
     pop di
