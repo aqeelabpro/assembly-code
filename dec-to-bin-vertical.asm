@@ -1,7 +1,7 @@
 [org 0x0100]
     jmp start
 
-decimal_to_hex:
+decimal_to_bin:
     push bp
     mov bp,sp
     push ax
@@ -62,7 +62,7 @@ push word [number]
 push word [rows]
 push word [cols]
 push word [attr]
-call decimal_to_hex
+call decimal_to_bin
 mov ax,0x4c00
 int 0x21
 

@@ -1,7 +1,7 @@
 [org 0x0100]
 jmp start
 
-dec_to_hex:
+bin_to_octal:
     push ax
     push bx
     push cx
@@ -11,7 +11,7 @@ dec_to_hex:
     push si
 
     mov cx,0
-    mov bx,16       ; hex divisor
+    mov bx,8       ; octal divisor
     mov di,0
     mov ax,0xb800
     mov es,ax
@@ -64,7 +64,7 @@ done_print:
 
 start:
     mov ax,[number]
-    call dec_to_hex
+    call bin_to_octal
 
     mov ax,0x4c00
     int 0x21
