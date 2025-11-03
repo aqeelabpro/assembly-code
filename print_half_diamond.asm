@@ -1,16 +1,7 @@
 [org 0x0100]
-jmp start
+jmp main
 
-;----------------------------------------
-; print_triangle
-; Prints a triangle of stars starting at (row, col)
-; Stack parameters:
-;   [bp+4]  = attribute byte
-;   [bp+6]  = column (0-based)
-;   [bp+8]  = row (0-based)
-;   [bp+10] = number of rows (height)
-;----------------------------------------
-print_triangle:
+print_stars:
     push bp
     mov bp, sp
     push ax
@@ -24,43 +15,83 @@ print_triangle:
     mov ax, 0B800h
     mov es, ax                 ; video memory segment
 
-    mov cx, [bp+10]            ; total rows to print
-    xor si, si                 ; current row counter (0-based)
-    mov bl, [bp+4]             ; attribute byte
-    mov bh, 0                  ; high byte for AX
-
-outer_loop:
-    mov ax, [bp+8]             ; starting row
-    add ax, si                 ; current row = start + si
+    mov cx, [bp+10]            ; total rows (height)
+    xor si, si                 ; triangle row counter
+    
+inc_part_outer:
+    mov ax, [bp+8]             ; maintaining row
+    mov bx, si
+    shl bx, 1                  ; bx = si * 2 (skip one line)
+    add ax, bx                 ; ax = main_row + (si*2)
     mov dx, 80
-    mul dx                      ; ax = row * 80
-    add ax, [bp+6]             ; add starting column
-    shl ax, 1                   ; multiply by 2 for bytes
-    mov di, ax                  ; offset in video memory
+    mul dx
+    add ax, [bp+6]             ; maintaining column
+    shl ax, 1
+    mov di, ax
 
-    ; print stars for this row (si + 1 stars)
     mov cx, si
-    inc cx                      ; number of stars = current row index + 1
+    shl cx, 1
+    inc cx                     ; cx = 2*si + 1 stars
 
-inner_loop:
-    cmp cx,0
-    je next_row
-    mov al,'*'
-    mov ah, bl            ; attribute
-    mov [es:di], ax       ; print star
-    add di,2              ; move to next cell
-    mov al,' '            ; space
-    mov ah, bl            ; same attribute
+print_inc_row_inner:
+    cmp cx, 0
+    je next_inc
+    mov al, '*'
+    mov ah, 0x07
     mov [es:di], ax
-    add di,2              ; move to next cell after space
+    add di, 2
     dec cx
-    jmp inner_loop
+    jmp print_inc_row_inner
 
-next_row:
-    inc si                      ; next row
-    cmp si, [bp+10]             ; finished all rows?
-    jl outer_loop
-        
+next_inc:
+    inc si
+    cmp si, [bp+10]
+    jl inc_part_outer
+
+    mov bx, [bp+10]
+    mov si, bx
+    sub si, 2          ; height - 2 (middle row is common)
+
+dec_part:
+    cmp si, 0FFFFh
+    je done
+
+    ; row = (main_row + (height*2 - 2)) + ((height - 2 - si) * 2)
+    ; meaning it mains just after top triangle
+    mov ax, [bp+8]
+    mov bx, [bp+10]
+    shl bx, 1
+    sub bx, 2
+    add ax, bx               ; bottom main = just below top triangle
+    mov bx, [bp+10]
+    sub bx, si
+    dec bx
+    shl bx, 1
+    add ax, bx
+    mov dx, 80
+    mul dx
+    add ax, [bp+6]
+    shl ax, 1
+    mov di, ax
+
+    mov cx, si
+    shl cx, 1
+    inc cx              ; cx = 2*si + 1 stars
+
+print_dec_row:
+    cmp cx, 0
+    je next_dec
+    mov al, '*'
+    mov ah, 0x07
+    mov [es:di], ax
+    add di, 2
+    dec cx
+    jmp print_dec_row
+
+next_dec:
+    dec si
+    jns dec_part
+
 done:
     pop es
     pop di
@@ -75,12 +106,12 @@ done:
 ;----------------------------------------
 ; main program
 ;----------------------------------------
-start:
+main:
     push word [height]  ; number of rows in triangle
-    push word [rows]    ; starting row
-    push word [cols]    ; starting column
+    push word [rows]    ; maintaining row
+    push word [cols]    ; maintaining column
     push word [attr]    ; attribute
-    call print_triangle
+    call print_stars
 
     mov ax, 0x4C00
     int 0x21
@@ -89,6 +120,6 @@ start:
 ; data
 ;----------------------------------------
 height: dw 5       ; triangle height
-rows:   dw 10      ; starting row
-cols:   dw 50      ; starting column
+rows:   dw 5       ; maintaining row
+cols:   dw 0       ; maintaining column
 attr:   dw 0x07    ; white-on-black
